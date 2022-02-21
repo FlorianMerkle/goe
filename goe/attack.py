@@ -32,7 +32,7 @@ class PGD7(fa.LinfPGD):
     """
     def __init__(self, epsilons):
         self.eps = epsilons
-        super().__init__(abs_stepsize=self.eps/4, steps=7, random_start=True)
+        super().__init__(abs_stepsize=float(self.eps/4), steps=7, random_start=True)
 
     def __call__(self, model, inputs, criterion):
         return super().__call__(model, inputs, criterion, epsilons=float(self.eps))
