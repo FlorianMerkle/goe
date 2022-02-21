@@ -26,16 +26,13 @@ class PGD7(fa.LinfPGD):
     """
     PGD-7 by Madry et al. used for adversarial training in
     https://arxiv.org/abs/1706.06083
-
-    Tip: Repr output can be more pretty when using fraction.Fraction(x,y) as
-    epsilons
     """
     def __init__(self, epsilons):
         self.eps = epsilons
-        super().__init__(abs_stepsize=float(self.eps/4), steps=7, random_start=True)
+        super().__init__(abs_stepsize=self.eps/4, steps=7, random_start=True)
 
     def __call__(self, model, inputs, criterion):
-        return super().__call__(model, inputs, criterion, epsilons=float(self.eps))
+        return super().__call__(model, inputs, criterion, epsilons=self.eps)
 
 
 class L2CarliniWagnerAttack(fa.L2CarliniWagnerAttack):
