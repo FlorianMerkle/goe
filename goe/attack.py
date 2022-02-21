@@ -26,6 +26,9 @@ class PGD7(fa.LinfPGD):
     """
     PGD-7 by Madry et al. used for adversarial training in
     https://arxiv.org/abs/1706.06083
+
+    Tip: Repr output can be more pretty when using fraction.Fraction(x,y) as
+    epsilons
     """
     def __init__(self, epsilons):
         self.eps = epsilons
