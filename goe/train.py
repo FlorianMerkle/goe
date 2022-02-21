@@ -11,7 +11,7 @@ import matplotlib.pyplot as plt
 from livelossplot import PlotLosses
 
 # Custom module
-from utils import get_PyTorchModel
+from goe.utils import get_PyTorchModel
 
 # TODO: Replace PlotLosses with pandas + matplotlib
 

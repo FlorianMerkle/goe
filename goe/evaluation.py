@@ -5,7 +5,7 @@ import torch
 from torchvision.transforms import Normalize
 
 # Custom module
-from utils import get_PyTorchModel
+from goe.utils import get_PyTorchModel
 
 def accuracy(model, dataloader, device, mean=0, std=1):
     model.eval()
