@@ -11,11 +11,16 @@ setuptools.setup(
     description='Code frequently used for the Game Over Eva(sion) project',
     long_description=long_description,
     long_description_content_type="text/markdown",
-    url='https://github.com/mike-huls/toolbox',
-    project_urls = {
-        "Bug Tracker": "https://github.com/mike-huls/toolbox/issues"
-    },
-    license='MIT',
-    packages=['toolbox'],
-    install_requires=['requests'],
+    url='https://github.com/FlorianMerkle/goe-code',
+    packages=setuptools.find_packages(),
+    install_requires=[
+        'warnings',
+        'sys',
+        'time',
+        'torch',
+        'matplotlib',
+        'pandas',
+        'numpy',
+        'torchvision',
+    ],
 )
