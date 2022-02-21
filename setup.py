@@ -4,7 +4,7 @@ with open("README.md", "r", encoding="utf-8") as fh:
     long_description = fh.read()
 
 setuptools.setup(
-    name='goe-code',
+    name='goe',
     version='0.0.0',
     author='MCI-DIBSE',
     author_email='florian.merkle@mci.edu',
