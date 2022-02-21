@@ -14,9 +14,6 @@ setuptools.setup(
     url='https://github.com/FlorianMerkle/goe-code',
     packages=setuptools.find_packages(),
     install_requires=[
-        'warnings',
-        'sys',
-        'time',
         'torch',
         'matplotlib',
         'pandas',
