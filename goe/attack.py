@@ -35,7 +35,7 @@ class PGD7(fa.LinfPGD):
         super().__init__(abs_stepsize=self.eps/4, steps=7, random_start=True)
 
     def __call__(self, model, inputs, criterion):
-        return super().__call__(model, inputs, criterion, epsilons=self.eps)
+        return super().__call__(model, inputs, criterion, epsilons=float(self.eps))
 
 
 class L2CarliniWagnerAttack(fa.L2CarliniWagnerAttack):
