@@ -1,7 +1,7 @@
 import os
 import torch
 import torchvision
-from goe.data import DataLoader
+from torch.utils.data import DataLoader
 
 def get_dataloader(dataset, path, batchsize=512, train_transforms=[], val_transforms=[], mean=0, std=1, num_workers=4):
     normalization = [
