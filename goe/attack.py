@@ -15,7 +15,7 @@ Unlike foolbox.attacks, we pass the epsilon bound when we instantiate the
 attack and not for __call__.
 
 Advantage:
-    No need to pass epsilon for each call. Results in cleaner code when 
+    No need to pass epsilon for each call. Results in cleaner code when
     defining adversarial training and repr also shows the specified epsilon.
 
 Disadvantage:
@@ -23,20 +23,20 @@ Disadvantage:
 """
 
 class PGD7(fa.LinfPGD):
-    """ 
+    """
     PGD-7 by Madry et al. used for adversarial training in
     https://arxiv.org/abs/1706.06083
     """
-    def __init__(self):
-        self.eps = 8/255
-        super().__init__(abs_stepsize=2/255, steps=7, random_start=True)
+    def __init__(self, epsilons):
+        self.eps = epsilons
+        super().__init__(abs_stepsize=self.eps/4, steps=7, random_start=True)
 
     def __call__(self, model, inputs, criterion):
         return super().__call__(model, inputs, criterion, epsilons=self.eps)
 
 
 class L2CarliniWagnerAttack(fa.L2CarliniWagnerAttack):
-    
+
     def __init__(self, epsilons, **kwargs):
         self.eps = epsilons
         super().__init__(**kwargs)
@@ -86,17 +86,17 @@ class L2UniversalAdversarialPerturbation(fa.L2DeepFoolAttack):
     """
     Universal adversarial perturbations based on paper
     https://arxiv.org/pdf/1610.08401.pdf
-    
+
     Minimal example:
-        epilon = 10, 
-        trainloader = ... (dataloader of training set), 
+        epilon = 10,
+        trainloader = ... (dataloader of training set),
         valloader = ... (dataloader of validation set)
         device = torch.device (gpu or cpu)
         model = PyTorchModel(...)
-        
-        attack = L2UniversalAdversarialPerturbation(epsilon) 
+
+        attack = L2UniversalAdversarialPerturbation(epsilon)
         attack.calculate_perturbation(model, trainloader, valloader, device)
-        
+
         Then attack(model, inputs, criterions) works as usual
     """
     def __init__(self, epsilons, df_steps=10, min_fooling_rate=0.8, uap_maxiter=10):
@@ -129,7 +129,7 @@ class L2UniversalAdversarialPerturbation(fa.L2DeepFoolAttack):
         fooling_rate /= len(dataloader.dataset)
         print(f"Fooling rate = {fooling_rate}")
         return fooling_rate
-        
+
     def calculate_perturbation(self, model, trainloader, valloader, device):
         assert model.bounds == (0,1) #TODO: Implement for other bounds
 
@@ -140,11 +140,11 @@ class L2UniversalAdversarialPerturbation(fa.L2DeepFoolAttack):
             for k, (inputs, labels) in enumerate(trainloader):
                 inputs, labels = inputs.to(device), labels.to(device)
                 for input_, label in zip(inputs[:,None,:],labels[:,None]):
-                    # Deepfool attack   
+                    # Deepfool attack
                     adv, clipped_adv, is_adv = super().__call__(
                         model, input_+self.uap, label, epsilons=self.eps
                     )
-    
+
                     if model(input_).argmax() != is_adv:
                         # No adversarial example found, don't update universal
                         # perturbation
