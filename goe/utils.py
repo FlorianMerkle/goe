@@ -1,7 +1,22 @@
 import numpy as np
+import torch
+from torchvision import transforms
 
 # Foolbox
 from foolbox import PyTorchModel
+
+class UniversalModel(torch.nn.module):
+    def __init__(self,model,mean=0,std=1, bounds=(0,1)):
+        self.mean = mean
+        self.std = std
+        self.norm = transforms.Normalize(mean, std)
+        self.model = model
+        axis = -3 if np.ndim(mean)==1 else None # Prevent PyTorchModel error
+        self.fmodel = PyTorchModel(model, bounds=bounds, preprocessing=dict(mean=mean, std=std, axis=axis))
+    def call(self,inputs):
+        return self.model(self.norm(inputs))
+    def fcall(self,inputs):
+        return self.model(inputs)
 
 def get_PyTorchModel(model, bounds, mean, std):
     # Generate preprocessing dict for PyTorchModel
