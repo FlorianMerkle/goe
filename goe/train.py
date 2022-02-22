@@ -36,15 +36,14 @@ def train_model(model, criterion, optimizer, dataloaders, device, num_epochs,
             model_bounds = (0,1)
         model.eval() # Prevent UserWarning, does not affect training below.
         fmodel = get_PyTorchModel(model, model_bounds, mean, std)
-    
+
     if attack != None: columns = ['acc', 'loss', 'rob_acc', 'rob_loss', 'val_acc', 'val_loss']
     if attack == None: columns = ['acc', 'loss', 'val_acc', 'val_loss']
     print('    '.join(columns))
     df = pd.DataFrame(columns=columns)
     # Begin training
     for epoch in range(1, num_epochs+1):
-        logs = {}
-        pd_logs = []
+        logs = []
         for phase in ['train', 'validation']: # First train, then validate
             # Switch between training and test eval mode depending on phase.
             # If the model is adversarially trained, then model.train() is set
@@ -86,21 +85,15 @@ def train_model(model, criterion, optimizer, dataloaders, device, num_epochs,
                     loss.backward() # Calculate gradients
                     optimizer.step() # Update weights
 
+            # Logging
             num_samples = len(dataloaders[phase].dataset)
             epoch_loss = running_loss.item() / num_samples # mean loss of epoch
             epoch_acc = running_corrects.item() / num_samples
-            pd_logs.extend((epoch_acc, epoch_loss))
+            logs += [epoch_acc, epoch_loss]
             if phase == "train" and attack is not None:
                 adv_epoch_loss = adv_running_loss.item() / num_samples
                 adv_epoch_acc = adv_running_corrects.item() / num_samples
-                pd_logs.extend((adv_epoch_acc, adv_epoch_loss))            
-            # Logging
-            prefix = 'val_' if phase == 'validation' else 'train_'
-            logs[prefix + 'loss'] = epoch_loss
-            logs[prefix + 'acc'] = epoch_acc
-            if attack is not None and phase == 'train':
-                logs['rob_' + 'loss'] = adv_epoch_loss
-                logs['rob_' + 'acc'] = adv_epoch_acc
+                logs += [adv_epoch_acc, adv_epoch_loss]
 
             # Save best model if 'save_name' was provided.
             if phase == 'validation' and epoch_acc>best_val_acc:
@@ -117,13 +110,12 @@ def train_model(model, criterion, optimizer, dataloaders, device, num_epochs,
                     print("New best validation accuracy - Model saved")
         if scheduler is not None:
             scheduler.step()
-        print('  '.join(list(map(lambda x: str(round(x,3)),pd_logs))))
-    
-        s_logs = pd.Series(pd_logs, index=columns)
-        df = df.append(s_logs, ignore_index=True)
-        plt.close()
-        if attack != None: df.plot(secondary_y=['loss','rob_loss','val_loss'] , style=['-',':','-',':','-',':'])
-        if attack == None: df.plot(secondary_y=['loss','val_loss'] , style=['-',':','-',':'])
+        print('  '.join(list(map(lambda x: str(round(x,3)),logs))))
+
+        df.loc[epoch] = logs
+        if epoch > 1: plt.close()
+        if attack != None: df.plot(secondary_y=['loss','rob_loss','val_loss'], style=['-',':','-',':','-',':'])
+        if attack == None: df.plot(secondary_y=['loss','val_loss'], style=['-',':','-',':'])
         df.to_csv(f'{save_name}.csv')
         plt.savefig(f'{save_name}.png')
         plt.pause(1e-10)
