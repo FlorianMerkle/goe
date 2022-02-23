@@ -1,6 +1,7 @@
 import warnings
 import sys
 from time import time
+import numpy as np
 
 # Torch
 import torch
@@ -82,6 +83,20 @@ class BoundaryAttack(fa.BoundaryAttack):
             epsilons=self.eps, starting_points=advs
         )
 
+def load_uap(path, device):
+    """
+    Input:
+        Path to npz file with entries "uap" and "uap_time".
+        device (Pytorch)
+
+    uap is the Universal Adversarial Perturbation stored as a numpy array
+    uap_time is the time to compute uap in seconds
+    """
+    npzfile = np.load(path)
+    uap = torch.from_numpy(npzfile["uap"]).to(device)
+    uap_time = npzfile["uap_time"]
+    return uap, uap_time
+
 class L2UniversalAdversarialPerturbation(fa.L2DeepFoolAttack):
     """
     Universal adversarial perturbations based on paper
@@ -99,11 +114,15 @@ class L2UniversalAdversarialPerturbation(fa.L2DeepFoolAttack):
 
         Then attack(model, inputs, criterions) works as usual
     """
-    def __init__(self, epsilons, df_steps=10, min_fooling_rate=0.8, uap_maxiter=10):
+    def __init__(self, epsilons, df_steps=10, min_fooling_rate=0.8,
+                 uap_maxiter=10, device=None, path=None):
         self.uap = 0 # Universal adversarial pertubation
+        self.uap_time = 0
         self.eps = epsilons
         self.min_fooling_rate = min_fooling_rate
         self.uap_maxiter = uap_maxiter # Max number of times we iterate through dataset
+        if path is not None:
+            self.load_uap(path)
         super().__init__(steps=df_steps)
 
     def apply_perturbation(self, inputs):

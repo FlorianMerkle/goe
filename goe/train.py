@@ -112,7 +112,6 @@ def train_model(model, criterion, optimizer, dataloaders, device, num_epochs,
 
         df.loc[epoch] = logs
         if generate_plots:
-            print("Hello")
             if epoch > 1: plt.close()
             if attack is None:
                 secondary_y = ['loss', 'val_los']
