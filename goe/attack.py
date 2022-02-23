@@ -46,6 +46,20 @@ class L2CarliniWagnerAttack(fa.L2CarliniWagnerAttack):
         return super().__call__(model, inputs, criterion, epsilons=self.eps)
 
 
+class HopSkipJump(fa.HopSkipJump):
+
+    def __init__(self, epsilons, **kwargs):
+        self.eps = epsilons
+        self.init_attack_ = init_BoundaryAttack()
+        super().__init__(**kwargs)
+
+    def __call__(self, model, inputs, criterion):
+        inputs, criterion, advs = self.init_attack_(model, inputs, criterion)
+        return super().__call__(
+            model, inputs, criterion,
+            epsilons=self.eps, starting_points=advs
+        )
+
 class init_BoundaryAttack(fa.LinearSearchBlendedUniformNoiseAttack):
     """
     The same init_attack is used by the default Foolbox BoundaryAttack.
