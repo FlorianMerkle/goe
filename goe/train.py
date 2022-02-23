@@ -122,9 +122,9 @@ def train_model(model, criterion, optimizer, dataloaders, device, num_epochs,
                 style = 3*['-',':']
                 color = np.repeat(["C0", "C1", "C2"], 2)
 
-        df.plot(secondary_y=secondary_y, style=style, color=color)
-        if save_name is not None: plt.savefig(f'{save_name}.png')
-        plt.pause(1e-10)
+            df.plot(secondary_y=secondary_y, style=style, color=color)
+            if save_name is not None: plt.savefig(f'{save_name}.png')
+            plt.pause(1e-10)
 
         if save_name is not None:
             df.to_csv(f'{save_name}.csv')
