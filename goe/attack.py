@@ -153,16 +153,16 @@ class L2UniversalAdversarialPerturbation(fa.L2DeepFoolAttack):
     # The following functions are needed to calculate the UAP
     #########################################################
 
-    def L2projection(self, x):
+    def L2projection(self, x, epsilon):
         # Projects inside the L2 ball, not necessarily onto the L2 sphere.
-        # The norm of the result can be smaller than self.eps
+        # The norm of the result can be smaller than epsilon
         norm = torch.linalg.vector_norm(x).item()
-        return x * min(1, self.epsilons/norm)
+        return x * min(1, epsilon/norm)
 
-    def calculate_foolingrate(self, model, dataloader, device):
+    def calculate_foolingrate(self, model, dataloader):
         fooling_rate = 0
         for inputs, _ in dataloader:
-            inputs = inputs.to(device)
+            inputs = inputs.to(self.device)
             _, advs = self.apply_perturbation(inputs)
             preds = model(inputs).argmax(dim=1)
             adv_preds = model(advs).argmax(dim=1)
@@ -179,12 +179,12 @@ class L2UniversalAdversarialPerturbation(fa.L2DeepFoolAttack):
         assert model.bounds == (0,1) #TODO: Implement for other bounds
         super().__init__(steps=df_steps)
 
-        for k in range(self.uap_maxiter):
+        for k in range(uap_maxiter):
             running_fooling_rate = 0
             begin = time()
             print("Data loader size:",f"{len(trainloader.dataset)}")
             for k, (inputs, labels) in enumerate(trainloader):
-                inputs, labels = inputs.to(device), labels.to(device)
+                inputs, labels = inputs.to(self.device), labels.to(self.device)
                 for input_, label in zip(inputs[:,None,:],labels[:,None]):
                     # Deepfool attack
                     adv, clipped_adv, is_adv = super().__call__(
@@ -196,12 +196,12 @@ class L2UniversalAdversarialPerturbation(fa.L2DeepFoolAttack):
 
                     running_fooling_rate += 1
                     perturbation = (adv - input_) + self.uap
-                    self.uap = self.L2projection(perturbation)
+                    self.uap = self.L2projection(perturbation, epsilon)
                 print(f"\r{running_fooling_rate}","/",(k+1)*len(labels),end="")
                 sys.stdout.flush()
             print()
             print(time()-begin)
-            fooling_rate = self.calculate_foolingrate(model, valloader, device)
+            fooling_rate = self.calculate_foolingrate(model, valloader)
             if fooling_rate < self.min_fooling_rate: break
         self.init_time = time() - begin
 
