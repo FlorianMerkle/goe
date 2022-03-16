@@ -13,18 +13,16 @@ from livelossplot import PlotLosses
 # Custom module
 from goe.utils import get_PyTorchModel
 
-# TODO: Replace PlotLosses with pandas + matplotlib
-
 def train_model(model, criterion, optimizer, dataloaders, device, num_epochs,
                 save_name=None, scheduler=None, mean=0, std=1,
-                attack=None, model_bounds=None):
+                attack=None, model_bounds=None, generate_plots=True):
 
     # Preperation
     begin = time()
     model = model.to(device) # Moves/casts the parameters and buffers to device
     norm = Normalize(mean, std) if (mean, std)!=(0,1) else lambda x: x
     best_val_acc = 0
-    plt.ion()
+    if generate_plots: plt.ion()
 
     ## Initialize fmodel for adversarial training (if necessary)
     if attack is None:
@@ -113,18 +111,27 @@ def train_model(model, criterion, optimizer, dataloaders, device, num_epochs,
         print('  '.join(list(map(lambda x: str(round(x,3)),logs))))
 
         df.loc[epoch] = logs
-        if epoch > 1: plt.close()
-        if attack != None: df.plot(secondary_y=['loss','rob_loss','val_loss'], style=['-',':','-',':','-',':'])
-        if attack == None: df.plot(secondary_y=['loss','val_loss'], style=['-',':','-',':'])
-        df.to_csv(f'{save_name}.csv')
-        plt.savefig(f'{save_name}.png')
-        plt.pause(1e-10)
+        if generate_plots:
+            if epoch > 1: plt.close()
+            if attack is None:
+                secondary_y = ['loss', 'val_los']
+                style = 2*['-',':']
+                color = np.repeat(["C0", "C2"], 2)
+            else:
+                secondary_y = ['loss', 'rob_loss', 'val_los']
+                style = 3*['-',':']
+                color = np.repeat(["C0", "C1", "C2"], 2)
 
-    if save_name is not None:
-        torch.save(model, save_name + ".pt")
-        with open(save_name + ".txt", "w") as f:
-            f.write(f"{save_name}\n")
-            f.write(f"Best epoch={epoch+1}, valacc={accstr}, {save_name}")
-            f.write(f"Computation time for {num_epochs} epochs {time()-begin}\n")
-        print("Model saved")
-        print()
+            df.plot(secondary_y=secondary_y, style=style, color=color)
+            if save_name is not None: plt.savefig(f'{save_name}.png')
+            plt.pause(1e-10)
+
+        if save_name is not None:
+            df.to_csv(f'{save_name}.csv')
+            torch.save(model, save_name + ".pt")
+            with open(save_name + ".txt", "w") as f:
+                f.write(f"{save_name}\n")
+                f.write(f"Best epoch={epoch+1}, valacc={accstr}, {save_name}")
+                f.write(f"Computation time for {num_epochs} epochs {time()-begin}\n")
+            print("Model saved")
+            print()
