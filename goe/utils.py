@@ -5,7 +5,7 @@ from torchvision import transforms
 # Foolbox
 from foolbox import PyTorchModel
 
-class UniversalModel(torch.nn.module):
+class UniversalModel(torch.nn.Module):
     def __init__(self,model,mean=0,std=1, bounds=(0,1)):
         self.mean = mean
         self.std = std
