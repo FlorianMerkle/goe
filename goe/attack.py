@@ -55,10 +55,14 @@ class HopSkipJump(fa.HopSkipJump):
 
     def __call__(self, model, inputs, criterion):
         inputs, criterion, advs = self.init_attack_(model, inputs, criterion)
-        return super().__call__(
+        advs, clipped_advs, is_adv = super().__call__(
             model, inputs, criterion,
             epsilons=self.eps, starting_points=advs
         )
+        if advs.isnan().any() or clipped_advs.isnan().any():
+            raise ValueError(f"""At least one entry of the generated adversarial
+                             examples is NaN.\n eps={self.eps}""")
+        return advs, clipped_advs, is_adv
 
 class init_BoundaryAttack(fa.LinearSearchBlendedUniformNoiseAttack):
     """
