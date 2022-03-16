@@ -3,7 +3,7 @@ import torch
 import torchvision
 from torch.utils.data import DataLoader
 
-def get_dataloader(dataset, path, batchsize=512, train_transforms=[], val_transforms=[], mean=0, std=1, num_workers=4):
+def get_dataloader(dataset, path, batchsize=512, train_transforms=[], val_transforms=[], mean=0, std=1, num_workers=4, shuffle=True):
     normalization = [
         torchvision.transforms.ToTensor(),
         torchvision.transforms.Normalize(mean, std)
@@ -36,7 +36,7 @@ def get_dataloader(dataset, path, batchsize=512, train_transforms=[], val_transf
     
     dataloader_kwargs = dict(batch_size=batchsize, 
                              pin_memory=True,
-                             shuffle=True,
+                             shuffle=shuffle,
                              num_workers=num_workers,
     )
     
