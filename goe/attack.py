@@ -153,6 +153,10 @@ class L2UniversalAdversarialPerturbation(fa.L2DeepFoolAttack):
         is_adv = model(advs).argmax(dim=1) != criterion
         return advs, clipped_advs, is_adv
 
+    def __repr__(self) -> str:
+        args = ", ".join(f"{k.strip('_')}={v}" for k, v in vars(self).items())
+        return f"{self.__class__.__name__}({args})"
+
     #########################################################
     # The following functions are needed to calculate the UAP
     #########################################################
@@ -177,14 +181,13 @@ class L2UniversalAdversarialPerturbation(fa.L2DeepFoolAttack):
         return fooling_rate
 
     def calculate_perturbation(self, model, trainloader, valloader, epsilon,
-                               save_path, df_steps=10, min_fooling_rate=0.8,
+                               save_path=None, df_steps=10, min_fooling_rate=0.8,
                                uap_maxiter=10):
 
         assert model.bounds == (0,1) #TODO: Implement for other bounds
         super().__init__(steps=df_steps)
 
         for k in range(uap_maxiter):
-            running_fooling_rate = 0
             begin = time()
             print("Data loader size:",f"{len(trainloader.dataset)}")
             for k, (inputs, labels) in enumerate(trainloader):
@@ -198,20 +201,22 @@ class L2UniversalAdversarialPerturbation(fa.L2DeepFoolAttack):
                     # No adversarial example found, don't update UAP
                     if model(input_).argmax() != is_adv: continue
 
-                    running_fooling_rate += 1
                     perturbation = (adv - input_) + self.uap
                     self.uap = self.L2projection(perturbation, epsilon)
-                print(f"\r{running_fooling_rate}","/",(k+1)*len(labels),end="")
-                sys.stdout.flush()
-            print()
-            print(time()-begin)
-            fooling_rate = self.calculate_foolingrate(model, valloader)
-            if fooling_rate < self.min_fooling_rate: break
-        self.init_time = time() - begin
 
-    def __repr__(self) -> str:
-            args = ", ".join(f"{k.strip('_')}={v}" for k, v in vars(self).items())
-            return f"{self.__class__.__name__}({args})"
+                print(time()-begin)
+                fooling_rate = self.calculate_foolingrate(model, valloader)
+                print("Current fooling rate:", fooling_rate)
+                print("Time:", time()-begin)
+                if fooling_rate >= self.min_fooling_rate: break
+        else:
+            print(f"Desired fooling rate {min_fooling_rate=} has not been \
+                  achieved after {uap_maxiter} iterations. Current fooling \
+                  rate = {fooling_rate}.")
+        self.init_time = time() - begin
+        if save_path is not None:
+            uap = self.uap.cpu().detach().numpy()
+            np.savez(save_path, init_time=self.init_time, uap=uap)
 
 
 # class L2UniversalAdversarialPerturbation(fa.L2DeepFoolAttack):
