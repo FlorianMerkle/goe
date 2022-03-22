@@ -46,7 +46,7 @@ class L2CarliniWagnerAttack(fa.L2CarliniWagnerAttack):
         return super().__call__(model, inputs, criterion, epsilons=self.eps)
 
 
-class HopSkipJump(fa.HopSkipJump):
+class HopSkipJumpAttack(fa.HopSkipJumpAttack):
 
     def __init__(self, epsilons, **kwargs):
         self.eps = epsilons
