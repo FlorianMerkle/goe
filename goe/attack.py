@@ -46,7 +46,7 @@ class L2CarliniWagnerAttack(fa.L2CarliniWagnerAttack):
         return super().__call__(model, inputs, criterion, epsilons=self.eps)
 
 
-class HopSkipJump(fa.HopSkipJump):
+class HopSkipJumpAttack(fa.HopSkipJumpAttack):
 
     def __init__(self, epsilons, **kwargs):
         self.eps = epsilons
@@ -169,143 +169,78 @@ class L2UniversalAdversarialPerturbation(fa.L2DeepFoolAttack):
 
     def calculate_foolingrate(self, model, dataloader):
         fooling_rate = 0
-        for inputs, _ in dataloader:
+        ASR = 0
+        for inputs, labels in dataloader:
             inputs = inputs.to(self.device)
+            labels = labels.to(self.device)
             _, advs = self.apply_perturbation(inputs)
             preds = model(inputs).argmax(dim=1)
             adv_preds = model(advs).argmax(dim=1)
 
             fooling_rate += torch.sum(preds != adv_preds).item()
+            ASR += torch.sum(adv_preds!=labels).item()
         fooling_rate /= len(dataloader.dataset)
-        print(f"Fooling rate = {fooling_rate}")
+        ASR /= len(dataloader.dataset)
+        print("Fooling rate:", fooling_rate)
         return fooling_rate
 
     def calculate_perturbation(self, model, trainloader, valloader, epsilon,
-                               save_path=None, df_steps=10, min_fooling_rate=0.8,
+                               save_path=None, save_best=True, df_steps=10, min_fooling_rate=0.8,
                                uap_maxiter=10):
+
+        if save_best:
+            print("save_best enabled: Early termination is not based on",
+                  "min_fooling_rate. Instead we stop if and only if the",
+                  "fooling_rate does not improve for a full epoch.")
 
         assert model.bounds == (0,1) #TODO: Implement for other bounds
         super().__init__(steps=df_steps)
 
+        best_fooling_rate = 0
         for k in range(uap_maxiter):
             begin = time()
             print("Data loader size:",f"{len(trainloader.dataset)}")
+            fooling_rate_improved = False
             for k, (inputs, labels) in enumerate(trainloader):
+                print()
                 inputs, labels = inputs.to(self.device), labels.to(self.device)
+
                 for input_, label in zip(inputs[:,None,:],labels[:,None]):
-                    # Deepfool attack
-                    adv, clipped_adv, is_adv = super().__call__(
-                        model, input_+self.uap, label, epsilons=epsilon
-                    )
 
-                    # No adversarial example found, don't update UAP
-                    if model(input_).argmax() != is_adv: continue
+                    uap_input = input_ + self.uap
+                    uap_prediction = model(uap_input).argmax(dim=1)
+                    # If the classifier is not fooled...
+                    if uap_prediction == label:
 
-                    perturbation = (adv - input_) + self.uap
-                    self.uap = self.L2projection(perturbation, epsilon)
-
-                print(time()-begin)
-                fooling_rate = self.calculate_foolingrate(model, valloader)
-                print("Current fooling rate:", fooling_rate)
+                        # Deepfool attack
+                        adv, _, is_adv = super().__call__(
+                            model, uap_input, uap_prediction, epsilons=None,
+                        )
+                        if is_adv:
+                            self.uap = self.L2projection(adv-input_, epsilon)
+                print()
                 print("Time:", time()-begin)
-                if fooling_rate >= self.min_fooling_rate: break
+                fooling_rate = self.calculate_foolingrate(model, valloader)
+                if best_fooling_rate < fooling_rate:
+                    fooling_rate_improved = True
+                    print("New best fooling_rate:")
+                    print(f"{best_fooling_rate=},{fooling_rate=}")
+                    best_fooling_rate = fooling_rate
+                    if save_path is not None and save_best:
+                        self.save_uap(save_path, time()-begin, self.uap)
+
+                # Early termination criterions.
+                # First one is based on min_fooling rate. Second checks if
+                # fooling_rate has not been improved for an epoch
+                if fooling_rate >= min_fooling_rate and not save_best: break
+            if save_best and not fooling_rate_improved: break
         else:
-            print(f"Desired fooling rate {min_fooling_rate=} has not been \
-                  achieved after {uap_maxiter} iterations. Current fooling \
-                  rate = {fooling_rate}.")
-        self.init_time = time() - begin
-        if save_path is not None:
-            uap = self.uap.cpu().detach().numpy()
-            np.savez(save_path, init_time=self.init_time, uap=uap)
+            print(f"Computation did not terminate early.")
 
+        if save_path is not None and not save_best:
+            self.init_time = time() - begin
+            save_uap(save_path, self.init_time, self.uap)
 
-# class L2UniversalAdversarialPerturbation(fa.L2DeepFoolAttack):
-#     """
-#     Universal adversarial perturbations based on paper
-#     https://arxiv.org/pdf/1610.08401.pdf
-
-#     Minimal example:
-#         epilon = 10,
-#         trainloader = ... (dataloader of training set),
-#         valloader = ... (dataloader of validation set)
-#         device = torch.device (gpu or cpu)
-#         model = PyTorchModel(...)
-
-#         attack = L2UniversalAdversarialPerturbation(epsilon)
-#         attack.calculate_perturbation(model, trainloader, valloader, device)
-
-#         Then attack(model, inputs, criterions) works as usual
-#     """
-#     def __init__(self, epsilons, df_steps=10, min_fooling_rate=0.8,
-#                  uap_maxiter=10, device=None, path=None):
-#         self.uap = 0 # Universal adversarial pertubation
-#         self.uap_time = 0
-#         self.eps = epsilons
-#         self.min_fooling_rate = min_fooling_rate
-#         self.uap_maxiter = uap_maxiter # Max number of times we iterate through dataset
-#         if path is not None:
-#             self.load_uap(path)
-#         super().__init__(steps=df_steps)
-
-#     def apply_perturbation(self, inputs):
-#         advs = inputs + self.uap.repeat_interleave(repeats=len(inputs), dim=0)
-#         clipped_advs = torch.clamp(advs, 0, 1) # TODO: Implement for other bounds
-#         return advs, clipped_advs
-
-#     def L2projection(self, x):
-#         # Projects inside the L2 ball, not necessarily onto the L2 sphere.
-#         # The norm of the result can be smaller than self.eps
-#         norm = torch.linalg.vector_norm(x).item()
-#         return x * min(1, self.epsilons/norm)
-
-#     def calculate_foolingrate(self, model, dataloader, device):
-#         fooling_rate = 0
-#         for inputs, _ in dataloader:
-#             inputs = inputs.to(device)
-#             _, advs = self.apply_perturbation(inputs)
-#             preds = model(inputs).argmax(dim=1)
-#             adv_preds = model(advs).argmax(dim=1)
-
-#             fooling_rate += torch.sum(preds != adv_preds).item()
-#         fooling_rate /= len(dataloader.dataset)
-#         print(f"Fooling rate = {fooling_rate}")
-#         return fooling_rate
-
-#     def calculate_perturbation(self, model, trainloader, valloader, device):
-#         assert model.bounds == (0,1) #TODO: Implement for other bounds
-
-#         for k in range(self.uap_maxiter):
-#             running_fooling_rate = 0
-#             begin = time()
-#             print("Data loader size:",f"{len(trainloader.dataset)}")
-#             for k, (inputs, labels) in enumerate(trainloader):
-#                 inputs, labels = inputs.to(device), labels.to(device)
-#                 for input_, label in zip(inputs[:,None,:],labels[:,None]):
-#                     # Deepfool attack
-#                     adv, clipped_adv, is_adv = super().__call__(
-#                         model, input_+self.uap, label, epsilons=self.eps
-#                     )
-
-#                     if model(input_).argmax() != is_adv:
-#                         # No adversarial example found, don't update universal
-#                         # perturbation
-#                         continue
-#                     running_fooling_rate += 1
-#                     perturbation = (adv - input_) + self.uap
-#                     self.uap = self.L2projection(perturbation)
-#                 print(f"\r{running_fooling_rate}","/",(k+1)*len(labels),end="")
-#                 sys.stdout.flush()
-#             print()
-#             print(time()-begin)
-#             fooling_rate = self.calculate_foolingrate(model, valloader, device)
-#             if fooling_rate < self.min_fooling_rate:
-#                 break
-
-#     def __call__(self, model, inputs, criterion):
-#         advs, clipped_advs = self.apply_perturbation(inputs)
-#         is_adv = model(advs).argmax(dim=1) != criterion
-#         return advs, clipped_advs, is_adv
-
-#     def __repr__(self) -> str:
-#         args = ", ".join(f"{k.strip('_')}={v}" for k, v in vars(self).items())
-#         return f"{self.__class__.__name__}({args})"
+    def save_uap(self, save_path, init_time, uap):
+        uap = uap.cpu().detach().numpy()
+        np.savez(save_path, init_time=init_time, uap=uap)
