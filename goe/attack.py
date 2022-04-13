@@ -112,7 +112,8 @@ class L2UniversalAdversarialPerturbation(fa.L2DeepFoolAttack):
     Otherwise it has to be calculated first with `calculate_perturbation`.
     """
 
-    def __init__(self, load_path=None, device=None):
+    def __init__(self, epsilons, load_path=None, device=None):
+        self.eps = epsilons
         self.uap = 0
         self.init_time = 0
         self.get_device(device)
@@ -153,19 +154,15 @@ class L2UniversalAdversarialPerturbation(fa.L2DeepFoolAttack):
         is_adv = model(advs).argmax(dim=1) != criterion
         return advs, clipped_advs, is_adv
 
-    def __repr__(self) -> str:
-        args = ", ".join(f"{k.strip('_')}={v}" for k, v in vars(self).items())
-        return f"{self.__class__.__name__}({args})"
-
     #########################################################
     # The following functions are needed to calculate the UAP
     #########################################################
 
-    def L2projection(self, x, epsilon):
+    def L2projection(self, x):
         # Projects inside the L2 ball, not necessarily onto the L2 sphere.
         # The norm of the result can be smaller than epsilon
         norm = torch.linalg.vector_norm(x).item()
-        return x * min(1, epsilon/norm)
+        return x * min(1, self.eps/norm)
 
     def calculate_foolingrate(self, model, dataloader):
         fooling_rate = 0
@@ -184,8 +181,8 @@ class L2UniversalAdversarialPerturbation(fa.L2DeepFoolAttack):
         print("Fooling rate:", fooling_rate)
         return fooling_rate
 
-    def calculate_perturbation(self, model, trainloader, valloader, epsilon,
-                               save_path=None, save_best=True, df_steps=10, min_fooling_rate=0.8,
+    def calculate_perturbation(self, model, trainloader, valloader, save_path=None,
+                               save_best=True, df_steps=10, min_fooling_rate=0.8,
                                uap_maxiter=10):
 
         if save_best:
@@ -197,8 +194,8 @@ class L2UniversalAdversarialPerturbation(fa.L2DeepFoolAttack):
         super().__init__(steps=df_steps)
 
         best_fooling_rate = 0
+        begin = time()
         for k in range(uap_maxiter):
-            begin = time()
             print("Data loader size:",f"{len(trainloader.dataset)}")
             fooling_rate_improved = False
             for k, (inputs, labels) in enumerate(trainloader):
@@ -217,7 +214,7 @@ class L2UniversalAdversarialPerturbation(fa.L2DeepFoolAttack):
                             model, uap_input, uap_prediction, epsilons=None,
                         )
                         if is_adv:
-                            self.uap = self.L2projection(adv-input_, epsilon)
+                            self.uap = self.L2projection(adv-input_)
                 print()
                 print("Time:", time()-begin)
                 fooling_rate = self.calculate_foolingrate(model, valloader)
@@ -244,3 +241,6 @@ class L2UniversalAdversarialPerturbation(fa.L2DeepFoolAttack):
     def save_uap(self, save_path, init_time, uap):
         uap = uap.cpu().detach().numpy()
         np.savez(save_path, init_time=init_time, uap=uap)
+
+    def __repr__(self):
+        return f'UAP(eps={self.eps})'
