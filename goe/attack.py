@@ -45,61 +45,54 @@ class L2CarliniWagnerAttack(fa.L2CarliniWagnerAttack):
     def __call__(self, model, inputs, criterion):
         return super().__call__(model, inputs, criterion, epsilons=self.eps)
 
+class InitBlackboxAttack:
+    """
+    Mixin class; Generate starting points before attacking.
 
-class HopSkipJumpAttack(fa.HopSkipJumpAttack):
+    Apply attack to all inputs, where the init_BlackboxAttack was successful.
+    The following construction ensures that inputs.size == advs.size
+    """
 
     def __init__(self, epsilons, **kwargs):
         self.eps = epsilons
-        self.init_attack_ = init_BoundaryAttack()
         super().__init__(**kwargs)
+        # Same init_attack used by BoundaryAttack and HopSkipJump
+        # Keep this as last item
+        self.init_attack2 = fa.LinearSearchBlendedUniformNoiseAttack(steps=50)
 
     def __call__(self, model, inputs, criterion):
-        inputs, criterion, advs = self.init_attack_(model, inputs, criterion)
-        advs, clipped_advs, is_adv = super().__call__(
-            model, inputs, criterion,
-            epsilons=self.eps, starting_points=advs
-        )
-        if advs.isnan().any() or clipped_advs.isnan().any():
-            raise ValueError(f"""At least one entry of the generated adversarial
-                             examples is NaN.\n eps={self.eps}""")
-        return advs, clipped_advs, is_adv
 
-class init_BoundaryAttack(fa.LinearSearchBlendedUniformNoiseAttack):
-    """
-    The same init_attack is used by the default Foolbox BoundaryAttack.
-    However, this attack can fail, causing errors for the boundary attack
-    We remove all unsuccessful adversarial examples to prevent these errors.
-    """
-    def __init__(self):
-        super().__init__(steps=50)
-
-    def __call__(self, model, inputs, criterion):
         with warnings.catch_warnings():
             # Filter warnings of failed attacks
             warnings.simplefilter('ignore', UserWarning)
-            _, advs, is_adv = super().__call__(
-                model, inputs, criterion, epsilons=None,
+            advs, clipped_advs, is_adv = self.init_attack2(
+                model,
+                inputs,
+                criterion,
+                epsilons=None,
             )
-        return inputs[is_adv], criterion[is_adv], advs[is_adv]
 
-
-class BoundaryAttack(fa.BoundaryAttack):
-    """
-    The same init_attack is used by the default Foolbox BoundaryAttack.
-    However, this attack can fail, causing errors for the boundary attack
-    We remove all unsuccessful adversarial examples to prevent these errors.
-    """
-    def __init__(self, epsilons, **kwargs):
-        self.eps = epsilons
-        self.init_attack_ = init_BoundaryAttack()
-        super().__init__(**kwargs)
-
-    def __call__(self, model, inputs, criterion):
-        inputs, criterion, advs = self.init_attack_(model, inputs, criterion)
-        return super().__call__(
-            model, inputs, criterion,
-            epsilons=self.eps, starting_points=advs
+        advs[is_adv], clipped_advs[is_adv], is_adv = super().__call__(
+            model,
+            inputs[is_adv],
+            criterion[is_adv],
+            epsilons=self.eps,
+            starting_points = clipped_advs[is_adv],
         )
+
+        # For debugging
+        if advs.isnan().any() or clipped_advs.isnan().any():
+            raise ValueError(f"""At least one entry of the generated adversarial
+                             examples is NaN.\n eps={self.eps}""")
+
+        return advs, clipped_advs, is_adv
+
+
+class BoundaryAttack(InitBlackboxAttack, fa.BoundaryAttack):
+    pass
+
+class HopSkipJumpAttack(InitBlackboxAttack, fa.HopSkipJumpAttack):
+    pass
 
 class L2UniversalAdversarialPerturbation(fa.L2DeepFoolAttack):
     """
