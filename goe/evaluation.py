@@ -87,7 +87,7 @@ def transferattack_successrate(model, surrogate,  dataloader, device,attack,
         # Compute adversarial examples on surrogate
         _, advs, _ = attack(fsurrogate, images, labels)
 
-        # Prediction of target model and check if imperceptible
+        # Prediction of defender model and check if imperceptible
         epsilon = attack.eps # Use our attacks, not native Foolbox
         is_adv = fmodel(advs).argmax(1) != labels.data
         is_imperceptible = check_imperceptible(images-advs, epsilon)
