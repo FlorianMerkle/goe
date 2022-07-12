@@ -8,7 +8,7 @@ from torchvision.transforms import Normalize
 
 # Plotting
 import matplotlib.pyplot as plt
-from livelossplot import PlotLosses
+#from livelossplot import PlotLosses
 
 # Custom module
 from goe.utils import get_PyTorchModel
