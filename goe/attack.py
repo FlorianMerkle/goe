@@ -192,7 +192,7 @@ class L2UniversalAdversarialPerturbation(fa.L2DeepFoolAttack):
                 for input_, label in zip(inputs[:,None,:],labels[:,None]):
                     # Deepfool attack
                     adv, clipped_adv, is_adv = super().__call__(
-                        model, input_+self.uap, label, epsilons=epsilon
+                        model, (input_+self.uap).clip(0,1), label, epsilons=epsilon
                     )
 
                     # No adversarial example found, don't update UAP
@@ -201,12 +201,12 @@ class L2UniversalAdversarialPerturbation(fa.L2DeepFoolAttack):
                     running_fooling_rate += 1
                     perturbation = (adv - input_) + self.uap
                     self.uap = self.L2projection(perturbation, epsilon)
-                print(f"\r{running_fooling_rate}","/",(k+1)*len(labels),end="")
+                print(f"\r{running_fooling_rate}","/",(k+1)*len(labels))
                 sys.stdout.flush()
             print()
             print(time()-begin)
             fooling_rate = self.calculate_foolingrate(model, valloader)
-            if fooling_rate < self.min_fooling_rate: break
+            if fooling_rate < min_fooling_rate: break
         self.init_time = time() - begin
 
     def __repr__(self) -> str:
