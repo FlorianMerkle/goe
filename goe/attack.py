@@ -107,7 +107,7 @@ class L2UniversalAdversarialPerturbation(fa.L2DeepFoolAttack):
 
     def __init__(self, epsilons, load_path=None, device=None):
         self.eps = epsilons
-        self.uap = 0
+        self.uap = torch.zeros((3,32,32)).to(device)
         self.init_time = 0
         self.get_device(device)
         self.load_uap(load_path)
@@ -188,8 +188,8 @@ class L2UniversalAdversarialPerturbation(fa.L2DeepFoolAttack):
 
         best_fooling_rate = 0
         begin = time()
-        for k in range(uap_maxiter):
-            print("Data loader size:",f"{len(trainloader.dataset)}")
+        for i in range(uap_maxiter):
+            print("UAP Iteration:",i,"Data loader size:",f"{len(trainloader.dataset)}")
             fooling_rate_improved = False
             for k, (inputs, labels) in enumerate(trainloader):
                 print()
@@ -197,7 +197,7 @@ class L2UniversalAdversarialPerturbation(fa.L2DeepFoolAttack):
 
                 for input_, label in zip(inputs[:,None,:],labels[:,None]):
 
-                    uap_input = input_ + self.uap
+                    _, uap_input = self.apply_perturbation(input_)
                     uap_prediction = model(uap_input).argmax(dim=1)
                     # If the classifier is not fooled...
                     if uap_prediction == label:
@@ -224,6 +224,7 @@ class L2UniversalAdversarialPerturbation(fa.L2DeepFoolAttack):
                 # fooling_rate has not been improved for an epoch
                 if fooling_rate >= min_fooling_rate and not save_best: break
             if save_best and not fooling_rate_improved: break
+            else: print("finished iteration:",i,"- fooling rate increased")
         else:
             print(f"Computation did not terminate early.")
 
