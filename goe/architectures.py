@@ -1,6 +1,11 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+from torchvision.transforms import Normalize
+
+mean, std = [0.4914, 0.4822, 0.4465], [0.2470, 0.2435, 0.2616]
+
+
 # Reminder
 # Conv2d(in, out, kernelsize)
 
@@ -140,6 +145,7 @@ class PreActBottleneck(nn.Module):
 class PreActResNet(nn.Module):
     def __init__(self, block, num_blocks, num_classes=10):
         super(PreActResNet, self).__init__()
+        self.n = Normalize(mean, std)
         self.in_planes = 64
 
         self.conv1 = nn.Conv2d(3, 64, kernel_size=3, stride=1, padding=1, bias=False)
@@ -159,6 +165,7 @@ class PreActResNet(nn.Module):
         return nn.Sequential(*layers)
 
     def forward(self, x):
+        x = self.n(x)
         out = self.conv1(x)
         out = self.layer1(out)
         out = self.layer2(out)

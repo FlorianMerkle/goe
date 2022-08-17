@@ -4,7 +4,6 @@ from time import time
 
 # Torch
 import torch
-from torchvision.transforms import Normalize
 
 # Plotting
 import matplotlib.pyplot as plt
@@ -20,7 +19,6 @@ def train_model(model, criterion, optimizer, dataloaders, device, num_epochs,
     # Preperation
     begin = time()
     model = model.to(device) # Moves/casts the parameters and buffers to device
-    norm = Normalize(mean, std) if (mean, std)!=(0,1) else lambda x: x
     best_val_acc = 0
     if generate_plots: plt.ion()
 
@@ -59,7 +57,7 @@ def train_model(model, criterion, optimizer, dataloaders, device, num_epochs,
                 labels = labels.to(device)
 
                 # Compute gradients and update weights
-                outputs = model(norm(images))
+                outputs = model(images)
                 loss = criterion(outputs, labels)
 
                 preds = torch.argmax(outputs, dim=1) # Get model's predictions
@@ -71,7 +69,7 @@ def train_model(model, criterion, optimizer, dataloaders, device, num_epochs,
                     _, images, _ = attack(fmodel, images, labels)
 
                     model.train()
-                    outputs = model(norm(images))
+                    outputs = model(images)
                     loss = criterion(outputs, labels)
 
                     preds = torch.argmax(outputs, dim=1) # Get model's predictions
