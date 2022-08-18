@@ -175,7 +175,7 @@ class L2UniversalAdversarialPerturbation(fa.L2DeepFoolAttack):
         return fooling_rate
 
     def calculate_perturbation(self, model, trainloader, valloader, save_path=None,
-                               save_best=True, df_steps=10, min_fooling_rate=0.8,
+                               save_best=True, df_steps=50, min_fooling_rate=0.8,
                                uap_maxiter=10):
 
         if save_best:
@@ -207,7 +207,7 @@ class L2UniversalAdversarialPerturbation(fa.L2DeepFoolAttack):
                             model, uap_input, uap_prediction, epsilons=None,
                         )
                         if is_adv:
-                            self.uap = self.L2projection(adv-input_)
+                            self.uap = self.L2projection(self.uap + (adv-input_))
                 print()
                 print("Time:", time()-begin)
                 fooling_rate = self.calculate_foolingrate(model, valloader)
