@@ -4,7 +4,6 @@ from time import time
 
 # Torch
 import torch
-from torchvision.transforms import Normalize
 
 # Plotting
 import matplotlib.pyplot as plt
@@ -20,7 +19,6 @@ def train_model(model, criterion, optimizer, dataloaders, device, num_epochs,
     # Preperation
     begin = time()
     model = model.to(device) # Moves/casts the parameters and buffers to device
-    norm = Normalize(mean, std) if (mean, std)!=(0,1) else lambda x: x
     best_val_acc = 0
     if generate_plots: plt.ion()
 
@@ -59,7 +57,7 @@ def train_model(model, criterion, optimizer, dataloaders, device, num_epochs,
                 labels = labels.to(device)
 
                 # Compute gradients and update weights
-                outputs = model(norm(images))
+                outputs = model(images)
                 loss = criterion(outputs, labels)
 
                 preds = torch.argmax(outputs, dim=1) # Get model's predictions
@@ -71,7 +69,7 @@ def train_model(model, criterion, optimizer, dataloaders, device, num_epochs,
                     _, images, _ = attack(fmodel, images, labels)
 
                     model.train()
-                    outputs = model(norm(images))
+                    outputs = model(images)
                     loss = criterion(outputs, labels)
 
                     preds = torch.argmax(outputs, dim=1) # Get model's predictions
@@ -88,6 +86,7 @@ def train_model(model, criterion, optimizer, dataloaders, device, num_epochs,
             epoch_loss = running_loss.item() / num_samples # mean loss of epoch
             epoch_acc = running_corrects.item() / num_samples
             logs += [epoch_acc, epoch_loss]
+
             if phase == "train" and attack is not None:
                 adv_epoch_loss = adv_running_loss.item() / num_samples
                 adv_epoch_acc = adv_running_corrects.item() / num_samples
@@ -98,14 +97,15 @@ def train_model(model, criterion, optimizer, dataloaders, device, num_epochs,
                 best_val_acc = epoch_acc
                 if save_name is not None:
                     accstr = str(np.round(epoch_acc,6))
-
                     accstr += (6-len(accstr))*'0'
+
                     torch.save(model, save_name + ".pt")
                     with open(save_name + ".txt", "w") as f:
                         f.write(f"{save_name}\n")
-                        f.write(f"Best epoch={epoch+1}, valacc={accstr}\n")
-                        f.write(f"Computation time for {epoch+1} epochs {time()-begin}\n")
+                        f.write(f"Best epoch={epoch}, valacc={accstr}\n")
+                        f.write(f"Computation time for {epoch} epochs {time()-begin}\n")
                     print("New best validation accuracy - Model saved")
+
         if scheduler is not None:
             scheduler.step()
         print('  '.join(list(map(lambda x: str(round(x,3)),logs))))
@@ -126,12 +126,12 @@ def train_model(model, criterion, optimizer, dataloaders, device, num_epochs,
             if save_name is not None: plt.savefig(f'{save_name}.png')
             plt.pause(1e-10)
 
-        if save_name is not None:
-            df.to_csv(f'{save_name}.csv')
-            torch.save(model, save_name + ".pt")
-            with open(save_name + ".txt", "w") as f:
-                f.write(f"{save_name}\n")
-                f.write(f"Best epoch={epoch+1}, valacc={accstr}, {save_name}")
-                f.write(f"Computation time for {num_epochs} epochs {time()-begin}\n")
-            print("Model saved")
-            print()
+        # if save_name is not None:
+        #     df.to_csv(f'{save_name}.csv')
+        #     torch.save(model, save_name + ".pt")
+        #     with open(save_name + ".txt", "w") as f:
+        #         f.write(f"{save_name}\n")
+        #         f.write(f"Best epoch={epoch}, valacc={accstr}, {save_name}")
+        #         f.write(f"Computation time for {num_epochs} epochs {time()-begin}\n")
+        #     print("Model saved")
+        #     print()
