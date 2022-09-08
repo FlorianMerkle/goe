@@ -34,6 +34,7 @@ def attack_successrate(model, dataloader, device, attack, mean=0, std=1,
     def PGD7(fmodel, images, labels):
         return base_attack(fmodel, images, labels, **attack_kwargs)
     """
+    torch.cuda.empty_cache()
     model.eval()
     model = model.to(device)
 
@@ -54,6 +55,7 @@ def attack_successrate(model, dataloader, device, attack, mean=0, std=1,
         print(f"\r{running_successes = } / {running_num_images}",end="")
     print()
     assert len(dataloader.dataset) == running_num_images # Sanity check
+    torch.cuda.empty_cache()
     return running_successes / len(dataloader.dataset)
 
 def L2_imperceptible(perturbation_tensor, epsilon):
