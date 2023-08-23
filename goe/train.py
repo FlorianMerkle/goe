@@ -32,7 +32,7 @@ def train_model(model, criterion, optimizer, dataloaders, device, num_epochs,
             model_bounds = (0,1)
         model.eval() # Prevent UserWarning, does not affect training below.
         fmodel = get_PyTorchModel(model, model_bounds, mean, std)
-
+    model = model.to(device) # Moves/casts the parameters and buffers to device
     if attack != None: columns = ['acc', 'loss', 'rob_acc', 'rob_loss', 'val_acc', 'val_loss']
     if attack == None: columns = ['acc', 'loss', 'val_acc', 'val_loss']
     print('    '.join(columns))
