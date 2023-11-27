@@ -24,7 +24,7 @@ def get_PyTorchModel(model, bounds, mean, std):
     axis = -3 if np.ndim(mean)==1 else None # Prevent PyTorchModel error
     preprocessing = dict(mean=mean, std=std, axis=axis)
 
-    return PyTorchModel(model, bounds=bounds, preprocessing=preprocessing, device='cpu')
+    return PyTorchModel(model, bounds=bounds, preprocessing=preprocessing, device='cuda')
 
 class SmoothedPyTorchModel(PyTorchModel):
     pass
